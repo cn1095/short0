@@ -26,6 +26,8 @@ import (
     "io"
     "regexp"
 	"bytes"
+	"context"  
+    "github.com/go-redis/redis/v8"
     "github.com/natefinch/lumberjack"
     "github.com/zu1k/nali/pkg/geoip"
     "github.com/zu1k/nali/pkg/ip2region"
@@ -63,6 +65,31 @@ var (
 	ipCookieValue      = "" // 动态设置
 )
 
+var (  
+    // ... existing variables at lines 43-64 ...  
+    useRedis bool  
+    redisAddr string  
+    redisPassword string  
+    redisDB int  
+    redisPrefix string  
+    rdb *redis.Client  
+    ctx = context.Background()  
+)  
+  
+// Storage interface for abstraction  
+type Storage interface {  
+    SaveURL(shortCode string, data []byte) error  
+    GetURL(shortCode string) ([]byte, error)  
+    DeleteURL(shortCode string) error  
+    ExistsURL(shortCode string) (bool, error)  
+    ListAllURLs() ([]string, error)  
+    SaveStats(data []byte) error  
+    GetStats() ([]byte) error  
+}  
+  
+// Global storage instance  
+var storage Storage
+
 // 定义查询实例
 var (
 	QQWryPath        string
@@ -81,6 +108,163 @@ var (
 	ip2locationInstance    *ip2location.IP2Location
 	cdnInstance    *cdn.CDN
 )
+
+// FileStorage implements Storage interface for file-based storage  
+type FileStorage struct {  
+    dataDir string  
+}  
+  
+func (fs *FileStorage) SaveURL(shortCode string, data []byte) error {  
+    filePath := filepath.Join(fs.dataDir, shortCode+".json")  
+    return ioutil.WriteFile(filePath, data, 0644)  
+}  
+  
+func (fs *FileStorage) GetURL(shortCode string) ([]byte, error) {  
+    filePath := filepath.Join(fs.dataDir, shortCode+".json")  
+    return ioutil.ReadFile(filePath)  
+}  
+  
+func (fs *FileStorage) DeleteURL(shortCode string) error {  
+    filePath := filepath.Join(fs.dataDir, shortCode+".json")  
+    return os.Remove(filePath)  
+}  
+  
+func (fs *FileStorage) ExistsURL(shortCode string) (bool, error) {  
+    filePath := filepath.Join(fs.dataDir, shortCode+".json")  
+    _, err := os.Stat(filePath)  
+    if os.IsNotExist(err) {  
+        return false, nil  
+    }  
+    return err == nil, err  
+}  
+  
+func (fs *FileStorage) ListAllURLs() ([]string, error) {  
+    files, err := filepath.Glob(filepath.Join(fs.dataDir, "*.json"))  
+    if err != nil {  
+        return nil, err  
+    }  
+    var urls []string  
+    for _, file := range files {  
+        if filepath.Base(file) != "short_data.json" {  
+            urls = append(urls, strings.TrimSuffix(filepath.Base(file), ".json"))  
+        }  
+    }  
+    return urls, nil  
+}  
+  
+func (fs *FileStorage) SaveStats(data []byte) error {  
+    filePath := filepath.Join(fs.dataDir, "short_data.json")  
+    return ioutil.WriteFile(filePath, data, 0644)  
+}  
+  
+func (fs *FileStorage) GetStats() ([]byte, error) {  
+    filePath := filepath.Join(fs.dataDir, "short_data.json")  
+    return ioutil.ReadFile(filePath)  
+}
+
+// RedisStorage implements Storage interface for Redis-based storage  
+type RedisStorage struct{}  
+  
+func (rs *RedisStorage) SaveURL(shortCode string, data []byte) error {  
+    key := redisPrefix + "url:" + shortCode  
+    return rdb.Set(ctx, key, string(data), 0).Err()  
+}  
+  
+func (rs *RedisStorage) GetURL(shortCode string) ([]byte, error) {  
+    key := redisPrefix + "url:" + shortCode  
+    result, err := rdb.Get(ctx, key).Result()  
+    if err == redis.Nil {  
+        return nil, os.ErrNotExist  
+    }  
+    return []byte(result), err  
+}  
+  
+func (rs *RedisStorage) DeleteURL(shortCode string) error {  
+    key := redisPrefix + "url:" + shortCode  
+    return rdb.Del(ctx, key).Err()  
+}  
+  
+func (rs *RedisStorage) ExistsURL(shortCode string) (bool, error) {  
+    key := redisPrefix + "url:" + shortCode  
+    result, err := rdb.Exists(ctx, key).Result()  
+    return result > 0, err  
+}  
+  
+func (rs *RedisStorage) ListAllURLs() ([]string, error) {  
+    keys, err := rdb.Keys(ctx, redisPrefix+"url:*").Result()  
+    if err != nil {  
+        return nil, err  
+    }  
+    var urls []string  
+    for _, key := range keys {  
+        urls = append(urls, strings.TrimPrefix(key, redisPrefix+"url:"))  
+    }  
+    return urls, nil  
+}  
+  
+func (rs *RedisStorage) SaveStats(data []byte) error {  
+    key := redisPrefix + "stats"  
+    return rdb.Set(ctx, key, string(data), 0).Err()  
+}  
+  
+func (rs *RedisStorage) GetStats() ([]byte, error) {  
+    key := redisPrefix + "stats"  
+    result, err := rdb.Get(ctx, key).Result()  
+    if err == redis.Nil {  
+        return nil, os.ErrNotExist  
+    }  
+    return []byte(result), err  
+}
+
+func initRedis() error {  
+    rdb = redis.NewClient(&redis.Options{  
+        Addr:     redisAddr,  
+        Password: redisPassword,  
+        DB:       redisDB,  
+    })  
+      
+    // 测试连接  
+    _, err := rdb.Ping(ctx).Result()  
+    if err != nil {  
+        return fmt.Errorf("Redis连接失败: %v", err)  
+    }  
+      
+    return nil  
+}
+
+func migrateLocalToRedis(dataDir, prefix string) error {  
+    redisStorage := &RedisStorage{}  
+    fileStorage := &FileStorage{dataDir: dataDir}  
+      
+    // 迁移统计数据  
+    if statsData, err := fileStorage.GetStats(); err == nil {  
+        if err := redisStorage.SaveStats(statsData); err != nil {  
+            log.Printf("迁移统计数据失败: %v", err)  
+        } else {  
+            log.Printf("成功迁移统计数据到Redis")  
+        }  
+    }  
+      
+    // 迁移URL数据  
+    urls, err := fileStorage.ListAllURLs()  
+    if err != nil {  
+        return err  
+    }  
+      
+    migratedCount := 0  
+    for _, shortCode := range urls {  
+        if data, err := fileStorage.GetURL(shortCode); err == nil {  
+            if err := redisStorage.SaveURL(shortCode, data); err != nil {  
+                log.Printf("迁移 %s 到Redis失败: %v", shortCode, err)  
+            } else {  
+                migratedCount++  
+            }  
+        }  
+    }  
+      
+    log.Printf("成功迁移 %d 个短链接到Redis", migratedCount)  
+    return nil  
+}
 
 func init() {
     // 设置时区为上海
@@ -136,112 +320,83 @@ func getIntValue(data map[string]interface{}, key string, defaultValue int) int 
     return defaultValue
 }
 //初始统计数据文件
-func initializeData(dataFilePath string) {
-    timeFormat := "2006-01-02"
-    
-    // 设置东八区（北京时间），偏移量为 +8 小时
-    cst := time.FixedZone("CST", 8*60*60)
-    
-    // 获取当前时间并转换为东八区时间
-    now := time.Now().In(cst)
-    
-    // 格式化日期
-    today := now.Format(timeFormat)
-
-    initialData := Data{
-        TotalRules:       0,
-        TodayNewRules:    0,
-        LastRuleUpdate:   today,
-        TotalVisits:      0,
-        TodayVisits:      0,
-        LastVisitsUpdate: today,
-        Email:            os.Getenv("Email"),
-        Img:              "https://img-baofun.zhhainiao.com/pcwallpaper_ugc/static/a613b671bce87bdafae01938c7cad011.jpg",
-    }
-    // 从完整路径中拆分目录和文件名
-    dataDir := filepath.Dir(dataFilePath)
-    dataFileName := filepath.Base(dataFilePath)
-
-    // 检查文件是否存在，以及文件大小是否为 0
-    fi, err := os.Stat(dataFilePath)
-    if os.IsNotExist(err) || (err == nil && fi.Size() == 0) {
-        // 文件不存在或为空，直接创建并写入初始数据
-        createAndWrite(dataFilePath, initialData)
-        return
-    }
-
-    // 文件存在且大小 > 0，则尝试打开并解析
-    file, err := os.OpenFile(dataFilePath, os.O_RDWR, 0644)
-    if err != nil {
-        log.Fatalf("无法打开统计数据文件: %v", err)
-    }
-    defer file.Close()
-
-    // 读取并解析 JSON
-    var rawData map[string]interface{}
-    decoder := json.NewDecoder(file)
-    if err := decoder.Decode(&rawData); err != nil {
-        // 解析失败（可能是无效 JSON），重建文件
-        log.Printf("统计数据文件内容无效，重建文件: %v", err)
-        file.Close()
-        createAndWrite(dataFilePath, initialData)
-        return
-    }
-
-    // 构建现有数据，补齐缺失字段
-    existingData := Data{
-        TotalRules:       getIntValue(rawData, "total_rules", initialData.TotalRules),
-        TodayNewRules:    getIntValue(rawData, "today_new_rules", initialData.TodayNewRules),
-        LastRuleUpdate:   getStringValue(rawData, "last_rule_update", initialData.LastRuleUpdate),
-        TotalVisits:      getIntValue(rawData, "total_visits", initialData.TotalVisits),
-        TodayVisits:      getIntValue(rawData, "today_visits", initialData.TodayVisits),
-        LastVisitsUpdate: getStringValue(rawData, "last_visits_update", initialData.LastVisitsUpdate),
-        Img:              getStringValue(rawData, "img", initialData.Img),
-        Email:            getStringValue(rawData, "email", initialData.Email),
-    }
-
-    // 如果日期已变，重置当天计数
-    if existingData.LastRuleUpdate != today {
-        existingData.LastRuleUpdate = today
-        existingData.TodayNewRules = 0
-    }
-    if existingData.LastVisitsUpdate != today {
-        existingData.LastVisitsUpdate = today
-        existingData.TodayVisits = 0
-    }
-    // 如果环境变量 Email 有变化，同步更新
-    if envEmail := os.Getenv("Email"); envEmail != "" && existingData.Email != envEmail {
-        existingData.Email = envEmail
-    }
-
-    // 重新统计 dataDir 目录下的 .json 规则文件数量（不含统计文件本身）
-    totalRules := 0
-    err = filepath.Walk(dataDir, func(path string, info os.FileInfo, err error) error {
-        if err != nil {
-            return err
-        }
-        if !info.IsDir() && filepath.Ext(info.Name()) == ".json" && info.Name() != dataFileName {
-            totalRules++
-        }
-        return nil
-    })
-    if err != nil {
-        log.Fatalf("无法统计 .json 文件数量: %v", err)
-    }
-    existingData.TotalRules = totalRules
-
-    // 将文件内容截断后写入更新后的数据，带缩进
-    if _, err := file.Seek(0, 0); err != nil {
-        log.Fatalf("无法移动文件指针: %v", err)
-    }
-    if err := file.Truncate(0); err != nil {
-        log.Fatalf("无法截断文件内容: %v", err)
-    }
-    encoder := json.NewEncoder(file)
-    encoder.SetIndent("", "  ")
-    if err := encoder.Encode(existingData); err != nil {
-        log.Fatalf("无法更新统计数据文件: %v", err)
-    }
+func initializeData() {  
+    var existingData Data  
+      
+    // 检查存储中是否已有统计数据  
+    statsData, err := storage.GetStats()  
+    if err != nil {  
+        // 没有统计数据，创建初始数据  
+        existingData = Data{  
+            TotalRules:        0,  
+            TodayNewRules:     0,  
+            LastRuleUpdate:    "",  
+            TotalVisits:       0,  
+            TodayVisits:       0,  
+            LastVisitsUpdate:  "",  
+            Email:             os.Getenv("Email"),  
+            Img:               "https://img-baofun.zhhainiao.com/pcwallpaper_ugc/static/a613b671bce87bdafae01938c7cad011.jpg",  
+        }  
+    } else {  
+        // 解析现有统计数据  
+        if err := json.Unmarshal(statsData, &existingData); err != nil {  
+            log.Printf("解析统计数据失败: %v", err)  
+            existingData = Data{  
+                TotalRules:        0,  
+                TodayNewRules:     0,  
+                LastRuleUpdate:    "",  
+                TotalVisits:       0,  
+                TodayVisits:       0,  
+                LastVisitsUpdate:  "",  
+                Email:             os.Getenv("Email"),  
+                Img:               "https://img-baofun.zhhainiao.com/pcwallpaper_ugc/static/a613b671bce87bdafae01938c7cad011.jpg",  
+            }  
+        }  
+    }  
+      
+    // 检查并重置每日计数器  
+    now := time.Now()  
+    timeFormat := "2006-01-02"  
+    today := now.Format(timeFormat)  
+      
+    if existingData.LastRuleUpdate != today {  
+        existingData.TodayNewRules = 0  
+        existingData.LastRuleUpdate = today  
+    }  
+    if existingData.LastVisitsUpdate != today {  
+        existingData.TodayVisits = 0  
+        existingData.LastVisitsUpdate = today  
+    }  
+      
+    // 更新环境变量中的邮箱  
+    if email := os.Getenv("Email"); email != "" {  
+        existingData.Email = email  
+    }  
+      
+    // 如果使用文件存储，重新统计文件数量  
+    if !useRedis {  
+        totalRules := 0  
+        err = filepath.Walk(dataDir, func(path string, info os.FileInfo, err error) error {  
+            if err != nil {  
+                return err  
+            }  
+            if !info.IsDir() && filepath.Ext(info.Name()) == ".json" && info.Name() != "short_data.json" {  
+                totalRules++  
+            }  
+            return nil  
+        })  
+        if err != nil {  
+            log.Printf("统计文件数量失败: %v", err)  
+        } else {  
+            existingData.TotalRules = totalRules  
+        }  
+    }  
+      
+    // 保存数据  
+    jsonData, _ := json.Marshal(existingData)  
+    if err := storage.SaveStats(jsonData); err != nil {  
+        log.Printf("保存统计数据失败: %v", err)  
+    }  
 }
 
 // createAndWrite 创建文件并写入给定的 Data 对象
@@ -354,135 +509,75 @@ func apiHandler(w http.ResponseWriter, r *http.Request, dataDir string) {
     // 生成文件路径
     filePath := filepath.Join(dataDir, req.ShortCode+".json")
 
-    // 检查文件是否存在
-    isNewRule := true
-    _, err := os.Stat(filePath)
-    if err == nil {
-        isNewRule = false
-
-        // 文件存在，检查密码
-        existingReq := ApiRequest{}
-        fileData, err := ioutil.ReadFile(filePath)
-        if err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
-        if err := json.Unmarshal(fileData, &existingReq); err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
-
-        // 检查密码是否匹配
-        if existingReq.Password != "" && existingReq.Password != req.Password {
-            errMsg := map[string]string{"error": "密码错误！该后缀已经被使用，请使用正确的密码修改或使用其他后缀。"}
-            w.Header().Set("Content-Type", "application/json")
-            w.WriteHeader(http.StatusBadRequest)
-            json.NewEncoder(w).Encode(errMsg)
-            return
-        }
-    }
-
-    // 更新过期时间
-    expirationMinutesStr := req.Expiration
-    if expirationMinutesStr != "" {
-        expirationMinutes, err := strconv.Atoi(expirationMinutesStr)
-        if err != nil {
-            http.Error(w, "expiration must be a valid number", http.StatusBadRequest)
-            return
-        }
-
-        // 手动设置为东八区（上海时区）
-loc := time.FixedZone("CST", 8*60*60) // CST: China Standard Time
-currentTime := time.Now().In(loc)
-
-        // 添加指定分钟数到当前时间
-        expirationTime := currentTime.Add(time.Duration(expirationMinutes) * time.Minute)
-
-        // 更新请求中的expiration字段为格式化后的时间字符串
-        req.Expiration = expirationTime.Format("2006-01-02 15:04:05")
-    }
-    
-    // 新增 last_update 参数到请求中
-    // 手动设置为东八区（上海时区）
-loc := time.FixedZone("CST", 8*60*60) // CST: China Standard Time
-lastUpdate := time.Now().In(loc).Format("2006-01-02 15:04:05")
-    req.LastUpdate = lastUpdate
-    
-    // 获取客户端 IP 地址
-    clientIP := getClientIP(r) // Assuming getClientIP function retrieves client IP from request 'r'
-    req.ClientIP = clientIP 
-
-    // 将更新后的data作为新的请求
-    data, err := json.MarshalIndent(req, "", "  ")
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-
-    // 创建或更新JSON文件
-    dir := filepath.Dir(filePath)
-    if _, err := os.Stat(dir); os.IsNotExist(err) {
-        if err := os.MkdirAll(dir, 0755); err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
-    }
-
-    // 将更新后的data写入文件
-    if err := ioutil.WriteFile(filePath, data, 0644); err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-    // 如果是新的规则，更新 short_data.json 中的数据
-    if isNewRule {
-        // 读取 short_data.json 文件
-        shortDataPath := filepath.Join(dataDir, "short_data.json")
-        shortData, err := ioutil.ReadFile(shortDataPath)
-        if err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
-
-        // 解析 JSON 数据
-        var shortDataMap map[string]interface{}
-        if err := json.Unmarshal(shortData, &shortDataMap); err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
-
-        // 获取当前上海时区日期
-        loc := time.FixedZone("CST", 8*60*60)
-        currentDate := time.Now().In(loc).Format("2006-01-02")
-
-        // 更新 total_rules 和 today_new_rules
-        totalRules := getIntValue(shortDataMap, "total_rules", 0)
-        todayNewRules := getIntValue(shortDataMap, "today_new_rules", 0)
-        lastRuleUpdate := getStringValue(shortDataMap, "last_rule_update", "")
-
-        if lastRuleUpdate != currentDate {
-            todayNewRules = 0
-        }
-
-        totalRules++
-        todayNewRules++
-
-        // 更新 short_data.json 的数据
-        shortDataMap["total_rules"] = totalRules
-        shortDataMap["today_new_rules"] = todayNewRules
-        shortDataMap["last_rule_update"] = currentDate
-
-        // 将更新后的数据写回 short_data.json 文件
-        updatedShortData, err := json.MarshalIndent(shortDataMap, "", "  ")
-        if err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
-
-        if err := ioutil.WriteFile(shortDataPath, updatedShortData, 0644); err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
-    }
+    // 检查短码是否已存在  
+exists, err := storage.ExistsURL(req.ShortCode)  
+if err != nil {  
+    http.Error(w, err.Error(), http.StatusInternalServerError)  
+    return  
+}  
+  
+isNewRule := !exists  
+  
+if !isNewRule {  
+    // 检查密码  
+    existingData, err := storage.GetURL(req.ShortCode)  
+    if err != nil {  
+        http.Error(w, err.Error(), http.StatusInternalServerError)  
+        return  
+    }  
+      
+    var existingReq ApiRequest  
+    if err := json.Unmarshal(existingData, &existingReq); err != nil {  
+        http.Error(w, err.Error(), http.StatusInternalServerError)  
+        return  
+    }  
+      
+    if existingReq.Password != "" && existingReq.Password != req.Password {  
+        errMsg := map[string]string{"error": "密码错误！该后缀已经被使用，请使用正确的密码修改或使用其他后缀。"}  
+        w.Header().Set("Content-Type", "application/json")  
+        w.WriteHeader(http.StatusBadRequest)  
+        json.NewEncoder(w).Encode(errMsg)  
+        return  
+    }  
+}  
+  
+// 保存数据  
+jsonData, err := json.Marshal(req)  
+if err != nil {  
+    http.Error(w, err.Error(), http.StatusInternalServerError)  
+    return  
+}  
+  
+if err := storage.SaveURL(req.ShortCode, jsonData); err != nil {  
+    http.Error(w, err.Error(), http.StatusInternalServerError)  
+    return  
+}  
+  
+// 更新统计数据  
+statsData, err := storage.GetStats()  
+if err != nil {  
+    http.Error(w, err.Error(), http.StatusInternalServerError)  
+    return  
+}  
+  
+var data Data  
+if err := json.Unmarshal(statsData, &data); err != nil {  
+    http.Error(w, err.Error(), http.StatusInternalServerError)  
+    return  
+}  
+  
+if isNewRule {  
+    data.TotalRules++  
+    data.TodayNewRules++  
+    now := time.Now()  
+    data.LastRuleUpdate = now.Format("2006-01-02")  
+}  
+  
+// 保存更新的统计数据  
+updatedStatsData, _ := json.Marshal(data)  
+if err := storage.SaveStats(updatedStatsData); err != nil {  
+    log.Printf("更新统计数据失败: %v", err)  
+}
     // 构造返回的URL
     host := r.Host
     shortURL := fmt.Sprintf("http://%s/%s", host, req.ShortCode)
@@ -501,22 +596,21 @@ lastUpdate := time.Now().In(loc).Format("2006-01-02 15:04:05")
 // 默认首页HTML文件
 func indexHandler(w http.ResponseWriter, r *http.Request) {
     // 读取short_data.json统计数据文件
-    dataFilePath := filepath.Join(dataDir, "short_data.json")
-    initializeData(dataFilePath)
-    file, err := os.Open(dataFilePath)
-    if err != nil {
-        http.Error(w, fmt.Sprintf("无法打开统计数据文件: %v", err), http.StatusInternalServerError)
-        return
-    }
-    defer file.Close()
-
-    // 解析数据
-    var data Data
-    decoder := json.NewDecoder(file)
-    if err := decoder.Decode(&data); err != nil {
-        http.Error(w, fmt.Sprintf("无法解析统计数据文件: %v", err), http.StatusInternalServerError)
-        return
-    }
+    // 初始化统计数据  
+initializeData()  
+  
+// 从存储获取统计数据  
+statsData, err := storage.GetStats()  
+if err != nil {  
+    http.Error(w, fmt.Sprintf("无法读取统计数据: %v", err), http.StatusInternalServerError)  
+    return  
+}  
+  
+var stats Data  
+if err := json.Unmarshal(statsData, &stats); err != nil {  
+    http.Error(w, fmt.Sprintf("无法解析统计数据: %v", err), http.StatusInternalServerError)  
+    return  
+}
 
     // 读取网页文件
     htmlContent, err := fs.ReadFile(content, "static/index.html")
@@ -560,132 +654,56 @@ func shortHandler(w http.ResponseWriter, r *http.Request, dataDir string) {
     }
     
     // 如果路径为空或者在 dataDir 目录中没有对应的 .json 文件，则重定向到根目录
-    filePath := filepath.Join(dataDir, path+".json")
-    _, err = os.Stat(filePath)
-    if path != "" && err != nil {
-        // 文件不存在，重定向到根目录
-        http.Redirect(w, r, "/", http.StatusFound)
-        return
-    }
-    // 如果路径为空，则返回
-    if path == "" {
-        errMsg := map[string]string{"error": "空页面！"}
-        w.Header().Set("Content-Type", "application/json")
-        w.WriteHeader(http.StatusBadRequest)
-        json.NewEncoder(w).Encode(errMsg)
-        return
-    }
-    // 读取JSON文件内容
-    jsonData, err := ioutil.ReadFile(filePath)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-
-    // 解析JSON数据
-    var data map[string]interface{}
-    if err := json.Unmarshal(jsonData, &data); err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-
-    // 检查expiration字段
-    expirationStr, ok := data["expiration"].(string)
-    if ok && expirationStr != "" {
-    // 解析expiration时间
-    expirationTime, err := time.Parse("2006-01-02 15:04:05", expirationStr)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusBadRequest)
-        return
-    }
-
-    // 获取当前上海时区时间
-    loc := time.FixedZone("CST", 8*60*60) 
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-    now := time.Now().In(loc)
-
-    // 格式化时间为字符串，以便比较
-    expirationTimeFormatted := expirationTime.Format("2006-01-02 15:04:05")
-    nowFormatted := now.Format("2006-01-02 15:04:05")
-
-    // 比较时间
-    if expirationTimeFormatted <= nowFormatted {
-        // 如果过期，返回"链接已过期"并删除文件
-        err := os.Remove(filePath)
-        if err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
-        fmt.Fprintf(w, "链接已过期")
-        return
-    }
-    }
-    // 解析JSON内容
-    var apiRequest ApiRequest
-    err = json.Unmarshal(jsonData, &apiRequest)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-
-    // 检查 burn_after_reading 的值，如果为 "true" 则删除文件
-    if apiRequest.BurnAfterReading == "true" {
-        err = os.Remove(filePath)
-        if err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
-     }
-     // 读取 short_data.json 文件
-        shortDataPath := filepath.Join(dataDir, "short_data.json")
-        shortData, err := ioutil.ReadFile(shortDataPath)
-        if err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
-
-        // 解析 JSON 数据
-        var shortDataMap map[string]interface{}
-        if err := json.Unmarshal(shortData, &shortDataMap); err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
-
-        // 获取当前上海时区日期
-        loc := time.FixedZone("CST", 8*60*60)
-        currentDate := time.Now().In(loc).Format("2006-01-02")
-
-        // 更新 total_rules 和 today_new_rules
-        totalVisits := getIntValue(shortDataMap, "total_visits", 0)
-        todayVisits := getIntValue(shortDataMap, "today_visits", 0)
-        lastVisitsUpdate := getStringValue(shortDataMap, "last_visits_update", "")
-
-        if lastVisitsUpdate != currentDate {
-            todayVisits = 0
-        }
-
-        totalVisits++
-        todayVisits++
-
-        // 更新 short_data.json 的数据
-        shortDataMap["total_visits"] = totalVisits
-        shortDataMap["today_visits"] = todayVisits
-        shortDataMap["last_visits_update"] = currentDate
-
-        // 将更新后的数据写回 short_data.json 文件
-        updatedShortData, err := json.MarshalIndent(shortDataMap, "", "  ")
-        if err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
-
-        if err := ioutil.WriteFile(shortDataPath, updatedShortData, 0644); err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
+    // 从存储获取数据  
+jsonData, err := storage.GetURL(path)  
+if err != nil {  
+    // 数据不存在，重定向到根目录  
+    http.Redirect(w, r, "/", http.StatusFound)  
+    return  
+}  
+  
+var req ApiRequest  
+if err := json.Unmarshal(jsonData, &req); err != nil {  
+    http.Error(w, err.Error(), http.StatusInternalServerError)  
+    return  
+}  
+  
+// 检查过期时间  
+if req.Expiration != "" {  
+    expirationTime, err := time.Parse("2006-01-02 15:04:05", req.Expiration)  
+    if err == nil {  
+        loc := time.FixedZone("CST", 8*60*60)  
+        now := time.Now().In(loc)  
+          
+        if now.After(expirationTime) {  
+            // 删除过期数据  
+            storage.DeleteURL(path)  
+            w.Write([]byte("链接已过期"))  
+            return  
+        }  
+    }  
+}  
+  
+// 阅后即焚处理  
+if req.BurnAfterReading == "true" {  
+    defer storage.DeleteURL(path)  
+}  
+  
+// 更新访问统计  
+statsData, err := storage.GetStats()  
+if err == nil {  
+    var data Data  
+    if err := json.Unmarshal(statsData, &data); err == nil {  
+        data.TotalVisits++  
+        data.TodayVisits++  
+        loc := time.FixedZone("CST", 8*60*60)  
+        now := time.Now().In(loc)  
+        data.LastVisitsUpdate = now.Format("2006-01-02")  
+          
+        updatedStatsData, _ := json.Marshal(data)  
+        storage.SaveStats(updatedStatsData)  
+    }  
+}
        // 解析JSON内容
     var apiReq ApiRequest
     err = json.Unmarshal(jsonData, &apiReq)
@@ -1119,117 +1137,106 @@ func adminHandler(w http.ResponseWriter, r *http.Request, dataDir string) {
 		}
 	}
 	
-	// 处理删除请求
-	if r.Method == http.MethodPost && r.FormValue("mode") == "delete" {
-		shortCode := r.FormValue("shortcode")
-		if shortCode == "" {
-			http.Error(w, "错误：缺少必要的参数", http.StatusBadRequest)
-			return
-		}
-
-		// 构建要删除的文件路径
-		filePath := filepath.Join(dataDir, shortCode+".json")
-
-		// 删除文件
-		err := os.Remove(filePath)
-		if err != nil {
-			log.Printf("删除%s失败 : %v", filePath, err)
-			http.Error(w, "删除失败", http.StatusInternalServerError)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("删除成功"))
-		return
-	}
-	
-		// 处理编辑请求
-	        if r.Method == http.MethodPost && r.FormValue("mode") == "edit" {
-		var data ApiRequest
-		decoder := json.NewDecoder(r.Body)
-		err := decoder.Decode(&data)
-		if err != nil {
-			http.Error(w, "错误：无效的请求数据", http.StatusBadRequest)
-			return
-		}
-
-		// 使用 ShortCode 作为文件名
-		shortCode := data.ShortCode
-		if shortCode == "" {
-			http.Error(w, "错误：缺少 ShortCode", http.StatusBadRequest)
-			return
-		}
-		// 判断 ShortCode 是否为单个 "/" 或包含 "/"
-    		if shortCode == "/" || strings.Contains(shortCode, "/") {
-        		http.Error(w, "错误：后缀里不能包含 / 符号", http.StatusBadRequest)
-        		return
-    		}
-		// 构建要更新的文件路径
-		filePath := filepath.Join(dataDir, shortCode+".json")
-
-		// 读取文件内容
-		_, err = os.Stat(filePath)
-		if err != nil {
-			if os.IsNotExist(err) {
-				http.Error(w, "错误：文件不存在", http.StatusNotFound)
-				return
-			}
-			http.Error(w, "错误：无法读取文件", http.StatusInternalServerError)
-			return
-		}
-
-		// 写入新数据到文件
-		fileContent, err := json.MarshalIndent(data, "", "  ")
-		if err != nil {
-			http.Error(w, "错误：无法序列化数据", http.StatusInternalServerError)
-			return
-		}
-
-		err = os.WriteFile(filePath, fileContent, 0644)
-		if err != nil {
-			http.Error(w, "错误：无法写入文件", http.StatusInternalServerError)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("修改成功"))
-		return
-	}
-	// 读取dataDir目录中的所有.json文件（不包括short_data.json）
-	files, err := filepath.Glob(filepath.Join(dataDir, "*.json"))
-	if err != nil {
-		http.Error(w, fmt.Sprintf("无法读取数据目录：%v", err), http.StatusInternalServerError)
-		return
-	}
-
-	// 定义结构用于保存所有文件的数据
-	var allData []ApiRequest
-
-	// 读取每个JSON文件的内容
-	for _, file := range files {
-		if filepath.Base(file) == "short_data.json" {
-			continue
-		}
-
-		// 读取JSON文件内容
-		content, err := os.ReadFile(file)
-		if err != nil {
-			log.Printf("无法读取文件 %s: %v", file, err)
-			continue
-		}
-
-		var data ApiRequest
-		if err := json.Unmarshal(content, &data); err != nil {
-			log.Printf("无法解析文件 %s: %v", file, err)
-			continue
-		}
-
-		allData = append(allData, data)
-	}
-
-	// 生成HTML响应
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	renderAdminPage(w, r, allData)
+	// 处理删除请求  
+if r.Method == http.MethodPost && r.FormValue("mode") == "delete" {  
+    shortCode := r.FormValue("shortcode")  
+    if shortCode == "" {  
+        http.Error(w, "错误：缺少必要的参数", http.StatusBadRequest)  
+        return  
+    }  
+  
+    // 删除数据  
+    err := storage.DeleteURL(shortCode)  
+    if err != nil {  
+        log.Printf("删除%s失败 : %v", shortCode, err)  
+        http.Error(w, "删除失败", http.StatusInternalServerError)  
+        return  
+    }  
+  
+    w.WriteHeader(http.StatusOK)  
+    w.Write([]byte("删除成功"))  
+    return  
+}  
+  
+// 处理编辑请求  
+if r.Method == http.MethodPost && r.FormValue("mode") == "edit" {  
+    var data ApiRequest  
+    decoder := json.NewDecoder(r.Body)  
+    err := decoder.Decode(&data)  
+    if err != nil {  
+        http.Error(w, "错误：无效的请求数据", http.StatusBadRequest)  
+        return  
+    }  
+  
+    shortCode := data.ShortCode  
+    if shortCode == "" {  
+        http.Error(w, "错误：缺少 ShortCode", http.StatusBadRequest)  
+        return  
+    }  
+  
+    if shortCode == "/" || strings.Contains(shortCode, "/") {  
+        http.Error(w, "错误：后缀里不能包含 / 符号", http.StatusBadRequest)  
+        return  
+    }  
+  
+    // 检查数据是否存在  
+    exists, err := storage.ExistsURL(shortCode)  
+    if err != nil {  
+        http.Error(w, "错误：无法检查数据", http.StatusInternalServerError)  
+        return  
+    }  
+  
+    if !exists {  
+        http.Error(w, "错误：数据不存在", http.StatusNotFound)  
+        return  
+    }  
+  
+    // 更新数据  
+    fileContent, err := json.MarshalIndent(data, "", "  ")  
+    if err != nil {  
+        http.Error(w, "错误：无法序列化数据", http.StatusInternalServerError)  
+        return  
+    }  
+  
+    if err := storage.SaveURL(shortCode, fileContent); err != nil {  
+        http.Error(w, "错误：无法写入数据", http.StatusInternalServerError)  
+        return  
+    }  
+  
+    w.WriteHeader(http.StatusOK)  
+    w.Write([]byte("修改成功"))  
+    return  
+}  
+  
+// 获取所有短链接数据  
+urls, err := storage.ListAllURLs()  
+if err != nil {  
+    http.Error(w, fmt.Sprintf("无法获取数据列表：%v", err), http.StatusInternalServerError)  
+    return  
+}  
+  
+var allData []ApiRequest  
+  
+// 读取每个键的数据  
+for _, shortCode := range urls {  
+    content, err := storage.GetURL(shortCode)  
+    if err != nil {  
+        log.Printf("无法读取数据 %s: %v", shortCode, err)  
+        continue  
+    }  
+  
+    var data ApiRequest  
+    if err := json.Unmarshal(content, &data); err != nil {  
+        log.Printf("无法解析数据 %s: %v", shortCode, err)  
+        continue  
+    }  
+  
+    allData = append(allData, data)  
+}  
+  
+// 生成HTML响应  
+w.Header().Set("Content-Type", "text/html; charset=utf-8")  
+renderAdminPage(w, r, allData)
 }
 
 func getHost(r *http.Request) string {  
@@ -2235,6 +2242,13 @@ func main() {
     flag.BoolVar(&admin, "admin", false, "启用管理员模式")
     flag.StringVar(&email, "e", "请修改为你的邮箱", "指定邮箱")
     flag.BoolVar(&daemon, "daemon", false, "以后台模式运行")
+
+	// Redis相关参数 - 只有提供redis-addr时才启用Redis  
+flag.StringVar(&redisAddr, "redis-addr", "", "Redis服务器地址（留空则使用文件存储）")  
+flag.StringVar(&redisPassword, "redis-password", "", "Redis密码")  
+flag.IntVar(&redisDB, "redis-db", 0, "Redis数据库编号")  
+flag.StringVar(&redisPrefix, "redis-prefix", "shorturl:", "Redis键前缀")
+	
     flag.BoolVar(&showHelp, "h", false, "帮助信息")
     flag.BoolVar(&showHelp, "help", false, "帮助信息")
     flag.BoolVar(&showVersion, "v", false, "版本号")
@@ -2325,6 +2339,25 @@ func main() {
     }
     //设置日志处理文件
     setupLogging(logDir)
+	// 检测是否启用Redis  
+useRedis = redisAddr != ""  
+if useRedis {  
+    if err := initRedis(); err != nil {  
+        log.Fatalf("Redis初始化失败: %v", err)  
+    }  
+    storage = &RedisStorage{}  
+    log.Printf("启用Redis存储模式: %s", redisAddr)  
+      
+    // 迁移本地数据到Redis（如果存在）  
+    if _, err := os.Stat(dataDir); err == nil {  
+        if err := migrateLocalToRedis(dataDir, redisPrefix); err != nil {  
+            log.Printf("数据迁移失败: %v", err)  
+        }  
+    }  
+} else {  
+    storage = &FileStorage{dataDir: dataDir}  
+    log.Printf("使用文件存储模式: %s", dataDir)  
+}
     //初始统计数据文件
     dataFilePath := filepath.Join(dataDir, "short_data.json")
     initializeData(dataFilePath)
