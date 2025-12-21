@@ -2331,30 +2331,8 @@ func main() {
 
     // 设置http请求处理程序
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// ===== 调试日志：输出所有请求头信息 =====  
-    log.Printf("=== 请求调试信息 ===")  
-    log.Printf("请求方法: %s", r.Method)  
-    log.Printf("请求路径: %s", r.URL.Path)  
-    log.Printf("完整URL: %s", r.URL.String())  
-    log.Printf("RemoteAddr: %s", r.RemoteAddr)  
-    log.Printf("Host: %s", r.Host)  
-      
-    // 输出所有请求头  
-    log.Printf("=== 所有请求头 ===")  
-    for name, headers := range r.Header {  
-        for _, h := range headers {  
-            log.Printf("  %s: %s", name, h)  
-        }  
-    }  
-      
-    // 特别关注几个重要的头  
-    log.Printf("Referer: %s", r.Header.Get("Referer"))  
-    log.Printf("User-Agent: %s", r.Header.Get("User-Agent"))  
-    log.Printf("X-Forwarded-For: %s", r.Header.Get("X-Forwarded-For"))  
-    log.Printf("X-Real-IP: %s", r.Header.Get("X-Real-IP"))  
-    log.Printf("=== 调试信息结束 ===")
-	// 设置CORS相关头
-   	 w.Header().Set("Access-Control-Allow-Origin", "*")  // 允许所有域名访问
+		// 设置CORS相关头
+   	 	w.Header().Set("Access-Control-Allow-Origin", "*")  // 允许所有域名访问
     	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")  // 允许的请求方法
     	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")  // 允许的请求头
 
@@ -2363,22 +2341,22 @@ func main() {
         	w.WriteHeader(http.StatusOK)
         	return
     	}
-	if r.URL.Path == "/api" {
+		if r.URL.Path == "/api" {
         	// 处理/api
         	apiHandler(w, r, dataDir)
-   	 } else if r.URL.Path == "/" {
+   	 	} else if r.URL.Path == "/" {
         	// 获取客户端的IP地址
         	clientIP := getIP(r)
         
-        // 获取请求的id参数
-        id := r.URL.Query().Get("id")
-	// 获取请求的ip参数，如果有值，则使用该ip值
-        ipParam := r.URL.Query().Get("ip")
-        if ipParam != "" {
-            // 如果ip不为空，查询IP归属地
-            ipInfo := queryIP(ipParam)
-	    log.Printf("查询归属地： %s", ipInfo)
-            // 找到第一个空格的位置，排除IP地址部分
+        	// 获取请求的id参数
+        	id := r.URL.Query().Get("id")
+			// 获取请求的ip参数，如果有值，则使用该ip值
+       		ipParam := r.URL.Query().Get("ip")
+        	if ipParam != "" {
+            	// 如果ip不为空，查询IP归属地
+            	ipInfo := queryIP(ipParam)
+	    		log.Printf("查询归属地： %s", ipInfo)
+            	// 找到第一个空格的位置，排除IP地址部分
             if idx := strings.Index(ipInfo, " "); idx != -1 {
                 ipInfo = ipInfo[idx+1:] // 取空格后面的内容
             }
