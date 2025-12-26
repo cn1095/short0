@@ -450,7 +450,7 @@ func (hs *HybridStorage) LoadStats() (Data, error) {
         if err != nil {  
             log.Printf("Redis读取统计数据失败: %v，回退到本地short_data文件存储", err)  
             // Redis读取失败时，回退到本地文件  
-            return hs.file.LoadStats()  
+            return hs.file.LoadStats()    
         }  
         return stats, nil  
     }  
@@ -467,7 +467,7 @@ func syncLocalToRedis() {
         return  
     }  
         
-    log.Println("开始双向智能同步本地数据与Redis...")  
+    log.Println("开始双向同步本地short_data与Redis的数据...")  
         
     fileStorage := NewFileStorage(dataDir)  
     redisStorage := NewRedisStorage(redisPrefix)  
@@ -481,11 +481,11 @@ func syncLocalToRedis() {
             
         if err != nil {  
             // Redis中没有统计数据，同步本地到Redis  
-            log.Printf("Redis中没有统计数据，将同步本地数据到Redis")  
+            // log.Printf("Redis中没有统计数据，将同步本地数据到Redis")  
             if err := redisStorage.SaveStats(localStats); err != nil {  
                 log.Printf("保存统计数据到Redis失败: %v", err)  
             } else {  
-                log.Println("本地统计数据同步到Redis完成")  
+                // log.Println("本地统计数据同步到Redis完成")  
             }  
         } else {  
             // 比较total_rules和total_visits数值  
@@ -493,35 +493,35 @@ func syncLocalToRedis() {
             redisToLocal := redisStats.TotalRules > localStats.TotalRules || redisStats.TotalVisits > localStats.TotalVisits  
                 
             if localToRedis {  
-                log.Printf("本地数据(total_rules:%d, total_visits:%d)大于Redis(total_rules:%d, total_visits:%d)，同步本地到Redis",   
+                // log.Printf("本地数据(后缀已使用:%d, 总转址数:%d)大于Redis(后缀已使用:%d, 总转址数:%d)，同步本地到Redis",   
                     localStats.TotalRules, localStats.TotalVisits, redisStats.TotalRules, redisStats.TotalVisits)  
                 if err := redisStorage.SaveStats(localStats); err != nil {  
                     log.Printf("保存统计数据到Redis失败: %v", err)  
                 } else {  
-                    log.Println("本地统计数据同步到Redis完成")  
+                    // log.Println("本地统计数据同步到Redis完成")  
                 }  
             } else if redisToLocal {  
-                log.Printf("Redis数据(total_rules:%d, total_visits:%d)大于本地(total_rules:%d, total_visits:%d)，同步Redis到本地",   
+                // log.Printf("Redis数据(后缀已使用:%d, 总转址数:%d)大于本地(后缀已使用:%d, 总转址数:%d)，同步Redis到本地",   
                     redisStats.TotalRules, redisStats.TotalVisits, localStats.TotalRules, localStats.TotalVisits)  
                 if err := fileStorage.SaveStats(redisStats); err != nil {  
                     log.Printf("保存Redis统计数据到本地失败: %v", err)  
                 } else {  
-                    log.Println("Redis统计数据同步到本地完成")  
+                    // log.Println("Redis统计数据同步到本地完成")  
                 }  
             } else {  
-                log.Printf("本地和Redis统计数据相同，跳过同步")  
+                // log.Printf("本地和Redis统计数据相同，跳过同步")  
             }  
                 
             // 检查img字段不一致情况  
             if localStats.Img != redisStats.Img {  
-                log.Printf("本地img(%s)与Redis img(%s)不一致，同步本地img到Redis", localStats.Img, redisStats.Img)  
+                // log.Printf("本地背景图img(%s)与Redis 背景图img(%s)不一致，同步本地img到Redis", localStats.Img, redisStats.Img)  
                 // 使用本地img更新Redis  
                 updatedRedisStats := redisStats  
                 updatedRedisStats.Img = localStats.Img  
                 if err := redisStorage.SaveStats(updatedRedisStats); err != nil {  
-                    log.Printf("更新Redis img字段失败: %v", err)  
+                    log.Printf("更新Redis 背景图img值失败: %v", err)  
                 } else {  
-                    log.Println("本地img同步到Redis完成")  
+                    // log.Println("本地img同步到Redis完成")  
                 }  
             }  
         }  
@@ -551,7 +551,7 @@ func syncLocalToRedis() {
         if !found {  
             // Redis中没有该规则，需要同步  
             shouldSync = true  
-            log.Printf("Redis中没有规则 %s，将同步", rule.ShortCode)  
+            // log.Printf("Redis中没有规则 %s，将同步", rule.ShortCode)  
         } else {  
             // 比较更新时间  
             localTime, err1 := time.Parse("2006-01-02 15:04:05", rule.LastUpdate)  
@@ -560,13 +560,13 @@ func syncLocalToRedis() {
             if err1 != nil || err2 != nil {  
                 // 时间解析失败，默认同步  
                 shouldSync = true  
-                log.Printf("规则 %s 时间解析失败，将同步", rule.ShortCode)  
+                // log.Printf("规则 %s 时间解析失败，将同步", rule.ShortCode)  
             } else if localTime.After(redisTime) {  
                 shouldSync = true  
-                log.Printf("规则 %s 本地时间(%s)比Redis(%s)新，将同步",     
+                // log.Printf("规则 %s 更新时间(%s)比Redis(%s)新，将同步",     
                     rule.ShortCode, rule.LastUpdate, redisRule.LastUpdate)  
             } else {  
-                log.Printf("规则 %s 本地时间(%s)不比Redis(%s)新，跳过同步",     
+                // log.Printf("规则 %s 更新时间(%s)不比Redis(%s)新，跳过同步",     
                     rule.ShortCode, rule.LastUpdate, redisRule.LastUpdate)  
                 shouldDelete = true // 同步完成后删除本地文件  
             }  
@@ -598,7 +598,7 @@ func syncLocalToRedis() {
     log.Printf("数据同步完成: 同步 %d 条，跳过 %d 条，删除 %d 个文件", syncCount, skipCount, deleteCount)  
       
     // 同步完成后重新统计并更新total_rules  
-    log.Println("开始重新统计并更新total_rules...")  
+    log.Println("开始重新统计并更新后缀已使用数量...")  
     updateTotalRulesAfterSync()  
 }
   
@@ -644,6 +644,14 @@ func getIntValue(data map[string]interface{}, key string, defaultValue int) int 
     }
     return defaultValue
 }
+
+// 获取背景图片的环境变量，如果不存在则使用默认图片链接 
+func getEnvWithDefault(key, defaultValue string) string {  
+    if value := os.Getenv(key); value != "" {  
+        return value  
+    }  
+    return defaultValue  
+}
 //初始统计数据文件
 func initializeData(dataFilePath string) {
     timeFormat := "2006-01-02"
@@ -665,7 +673,7 @@ func initializeData(dataFilePath string) {
         TodayVisits:      0,
         LastVisitsUpdate: today,
         Email:            os.Getenv("Email"),
-        Img:              "https://img-baofun.zhhainiao.com/pcwallpaper_ugc/static/a613b671bce87bdafae01938c7cad011.jpg",
+        Img:              getEnvWithDefault("SHORT_IMG", "https://img-baofun.zhhainiao.com/pcwallpaper_ugc/static/a613b671bce87bdafae01938c7cad011.jpg"),
     }
     // 从完整路径中拆分目录和文件名
     dataDir := filepath.Dir(dataFilePath)
@@ -705,8 +713,8 @@ func initializeData(dataFilePath string) {
         TotalVisits:      getIntValue(rawData, "total_visits", initialData.TotalVisits),
         TodayVisits:      getIntValue(rawData, "today_visits", initialData.TodayVisits),
         LastVisitsUpdate: getStringValue(rawData, "last_visits_update", initialData.LastVisitsUpdate),
-        Img:              getStringValue(rawData, "img", initialData.Img),
-        Email:            getStringValue(rawData, "email", initialData.Email),
+        Img:              getEnvWithDefault("SHORT_IMG", getStringValue(rawData, "img", initialData.Img)),
+    	Email:            getEnvWithDefault("SHORT_EMAIL", getStringValue(rawData, "email", initialData.Email)),
     }
 
     // 如果日期已变，重置当天计数
@@ -807,7 +815,7 @@ func updateVisitStats() {
     if err := storage.SaveStats(stats); err != nil {    
         log.Printf("保存统计数据失败: %v", err)    
     } else {  
-        log.Printf("访问统计已更新: TotalVisits=%d, TodayVisits=%d", stats.TotalVisits, stats.TodayVisits)  
+        // log.Printf("访问统计已更新: TotalVisits=%d, TodayVisits=%d", stats.TotalVisits, stats.TodayVisits)  
     }  
 }
 
@@ -994,7 +1002,7 @@ func loadStatsWithPriority() (Data, error) {
         redisStorage := NewRedisStorage(redisPrefix)  
         stats, err := redisStorage.LoadStats()  
         if err == nil {  
-            log.Printf("从Redis获取统计数据成功: total_rules=%d, total_visits=%d",   
+            // log.Printf("从Redis获取统计数据成功: 后缀已使用=%d, 总转址数=%d",     
                 stats.TotalRules, stats.TotalVisits)  
             return stats, nil  
         } else {  
@@ -1010,7 +1018,7 @@ func loadStatsWithPriority() (Data, error) {
         return Data{}, err  
     }  
       
-    log.Printf("从本地文件获取统计数据: total_rules=%d, total_visits=%d",   
+    // log.Printf("从本地文件获取统计数据: 后缀已使用=%d, 总转址数=%d",   
         stats.TotalRules, stats.TotalVisits)  
     return stats, nil  
 }
@@ -1029,7 +1037,7 @@ func updateTotalRulesAfterSync() {
     }  
       
     actualTotalRules := len(rules)  
-    log.Printf("Redis中实际规则数量: %d", actualTotalRules)  
+    // log.Printf("Redis中实际规则数量: %d", actualTotalRules)  
       
     // 获取当前统计数据  
     currentStats, err := loadStatsWithPriority()  
@@ -1057,10 +1065,10 @@ func updateTotalRulesAfterSync() {
         if err := fileStorage.SaveStats(currentStats); err != nil {  
             log.Printf("更新本地统计数据失败: %v", err)  
         } else {  
-            log.Printf("本地文件 total_rules已更新为: %d", actualTotalRules)  
+            // log.Printf("本地文件 后缀已使用 更新为: %d", actualTotalRules)  
         }  
     } else {  
-        log.Printf("total_rules已是最新值: %d，无需更新", actualTotalRules)  
+        // log.Printf("后缀已使用 已是最新值: %d，无需更新", actualTotalRules)  
     }  
 }
 
@@ -2547,16 +2555,22 @@ func queryIP(ip string) string {
 		fmt.Println("QQWry查询结果：", ip, result)
 		return ip + " " + result
 	}
-
-	result, err = queryGeoip2(ip)
+	
+	result, err = queryzxipv6wry(ip)
 	if err == nil && result != "" {
-		fmt.Println("GeoIP查询结果：", ip, result)
+		fmt.Println("Zxipv6wry查询结果：", ip, result)
 		return ip + " " + result
 	}
 
 	result, err = queryIp2Region(ip)
 	if err == nil && result != "" {
 		fmt.Println("Ip2Region查询结果：", ip, result)
+		return ip + " " + result
+	}
+
+	result, err = queryGeoip2(ip)
+	if err == nil && result != "" {
+		fmt.Println("GeoIP查询结果：", ip, result)
 		return ip + " " + result
 	}
 
@@ -2576,11 +2590,7 @@ func queryIP(ip string) string {
 		fmt.Println("IP2location查询结果：", ip, result)
 		return ip + " " + result
 	}
-	result, err = queryzxipv6wry(ip)
-	if err == nil && result != "" {
-		fmt.Println("Zxipv6wry查询结果：", ip, result)
-		return ip + " " + result
-	}
+	
 
 	// 如果所有查询都没有结果，使用原IP
 	fmt.Println("未查询到IP区域信息，返回原始IP：", ip)
@@ -2853,7 +2863,50 @@ func main() {
     flag.BoolVar(&showVersion, "v", false, "版本号")
     flag.BoolVar(&showVersion, "version", false, "版本号")
     flag.Parse()
-    
+
+	// 环境变量优先级处理  
+if envPort := os.Getenv("SHORT_PORT"); envPort != "" {  
+    if p, err := strconv.Atoi(envPort); err == nil {  
+        port = p  
+    }  
+}  
+if envDataDir := os.Getenv("SHORT_DATA_DIR"); envDataDir != "" {  
+    dataDir = envDataDir  
+}  
+if envDbDir := os.Getenv("SHORT_DB_DIR"); envDbDir != "" {  
+    dbDir = envDbDir  
+}  
+if envLogDir := os.Getenv("SHORT_LOG_DIR"); envLogDir != "" {  
+    logDir = envLogDir  
+}  
+if envAdmin := os.Getenv("SHORT_ADMIN"); envAdmin != "" {  
+    admin = envAdmin == "true" || envAdmin == "1"  
+}  
+if envEmail := os.Getenv("SHORT_EMAIL"); envEmail != "" {  
+    email = envEmail  
+}  
+if envUsername := os.Getenv("SHORT_USERNAME"); envUsername != "" {  
+    username = envUsername  
+}  
+if envPassword := os.Getenv("SHORT_PASSWORD"); envPassword != "" {  
+    password = envPassword  
+}  
+if envDaemon := os.Getenv("SHORT_DAEMON"); envDaemon != "" {  
+    daemon = envDaemon == "true" || envDaemon == "1"  
+}  
+if envRedisAddr := os.Getenv("SHORT_REDIS_ADDR"); envRedisAddr != "" {  
+    redisAddrFlag = envRedisAddr  
+}  
+if envRedisUser := os.Getenv("SHORT_REDIS_USER"); envRedisUser != "" {  
+    redisUsernameFlag = envRedisUser  
+}  
+if envRedisPass := os.Getenv("SHORT_REDIS_PASS"); envRedisPass != "" {  
+    redisPasswordFlag = envRedisPass  
+}  
+if envRedisPre := os.Getenv("SHORT_REDIS_PRE"); envRedisPre != "" {  
+    redisPrefixFlag = envRedisPre  
+}
+	
     //打印帮助信息
     if showHelp {
        colorText := func(color int, message string) string {
