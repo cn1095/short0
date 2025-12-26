@@ -1635,7 +1635,10 @@ func adminHandler(w http.ResponseWriter, r *http.Request, dataDir string) {
             log.Printf("删除规则 %s 失败: %v", shortCode, err)  
             http.Error(w, "删除失败", http.StatusInternalServerError)  
             return  
-        }  
+        }
+
+		// 删除成功后更新total_rules统计  
+    	updateTotalRulesAfterSync()
   
         w.WriteHeader(http.StatusOK)  
         w.Write([]byte("删除成功"))  
@@ -2786,7 +2789,7 @@ func initializeIPDatabases() {
         log.Println("CDN数据库初始化成功")  
     }  
       
-    log.Println("IP数据库异步初始化完成")  
+    // log.Println("IP数据库异步初始化完成")  
 }
 
 func main() {
@@ -2808,19 +2811,19 @@ func main() {
 
     // 使用flag包解析命令行参数
     flag.IntVar(&port, "p", 8080, "监听端口")
-    flag.StringVar(&dataDir, "d", "", "指定数据存放目录路径")
-    flag.StringVar(&dbDir, "db", "", "指定IP地址离线数据存放目录路径")
+    flag.StringVar(&dataDir, "d", "", "指定本地数据存放目录路径，默认当前程序路径的./short_data文件夹")
+    flag.StringVar(&dbDir, "db", "", "指定IP地址库离线数据存放目录路径，默认/tmp文件夹")
     flag.StringVar(&logDir, "log", "", "指定日志目录路径")
     flag.StringVar(&username, "u", "admin", "指定管理页面账户名")
     flag.StringVar(&password, "w", "admin", "指定管理页面密码")
-    flag.BoolVar(&admin, "admin", false, "启用管理员模式")
-    flag.StringVar(&email, "e", "请修改为你的邮箱", "指定邮箱")
+    flag.BoolVar(&admin, "admin", false, "启用管理页面管理短链数据，网页路径/admin")
+    flag.StringVar(&email, "e", "请修改为你的邮箱", "指定网页中的联系邮箱")
     flag.BoolVar(&daemon, "daemon", false, "以后台模式运行")
 	// 新增Redis参数  
     flag.StringVar(&redisAddrFlag, "redis-addr", "", "Redis服务器地址 (例如: localhost:6379)")  
     flag.StringVar(&redisUsernameFlag, "redis-user", "", "Redis用户名")  
     flag.StringVar(&redisPasswordFlag, "redis-pass", "", "Redis密码")  
-    flag.StringVar(&redisPrefixFlag, "redis-pre", "short", "Redis数据前缀，用于区分不同应用")
+    flag.StringVar(&redisPrefixFlag, "redis-pre", "short", "Redis数据前缀，默认为short，连接相同的redis数据库时用于区分不同应用")
 	
     flag.BoolVar(&showHelp, "h", false, "帮助信息")
     flag.BoolVar(&showHelp, "help", false, "帮助信息")
@@ -2879,18 +2882,18 @@ if envRedisPre := os.Getenv("SHORT_REDIS_PRE"); envRedisPre != "" {
 
 	// 使用固定宽度确保对齐  
     fmt.Printf("  %-20s %-15s %s\n", colorText(36, "-p"), colorText(34, "[端口号]"), "监听指定端口号")  
-    fmt.Printf("  %-20s %-15s %s\n", colorText(36, "-d"), colorText(34, "[文件路径]"), "指定数据存放的目录路径，默认当前程序路径的./short_data文件夹")  
-    fmt.Printf("  %-20s %-15s %s\n", colorText(36, "-db"), colorText(34, "[文件路径]"), "指定IP地址离线数据存放的目录路径，默认/tmp文件夹")  
+    fmt.Printf("  %-20s %-15s %s\n", colorText(36, "-d"), colorText(34, "[文件路径]"), "指定本地数据存放的目录路径，默认当前程序路径的./short_data文件夹")  
+    fmt.Printf("  %-20s %-15s %s\n", colorText(36, "-db"), colorText(34, "[文件路径]"), "指定IP地址库离线数据存放的目录路径，默认/tmp文件夹")  
     fmt.Printf("  %-20s %-15s %s\n", colorText(36, "-log"), colorText(34, "[文件路径]"), "启用日志，并指定日志存放的目录路径")  
-    fmt.Printf("  %-20s %-15s %s\n", colorText(36, "-admin"), "", "启用管理员后台页面")  
-    fmt.Printf("  %-20s %-15s %s\n", colorText(36, "-e"), colorText(34, "[邮箱地址]"), "指定邮箱地址，修改页面的邮箱地址")  
+    fmt.Printf("  %-20s %-15s %s\n", colorText(36, "-admin"), "", "启用管理页面管理短链数据，网页路径/admin")  
+    fmt.Printf("  %-20s %-15s %s\n", colorText(36, "-e"), colorText(34, "[邮箱地址]"), "指定邮箱地址，修改页面的联系邮箱地址")  
     fmt.Printf("  %-20s %-15s %s\n", colorText(36, "-u"), colorText(34, "[账户名]"), "指定管理页面的登陆账户名")  
     fmt.Printf("  %-20s %-15s %s\n", colorText(36, "-w"), colorText(34, "[密码]"), "指定管理页面的登陆密码")  
     fmt.Printf("  %-20s %-15s %s\n", colorText(36, "-daemon"), "", "以后台模式运行")  
     fmt.Printf("  %-20s %-15s %s\n", colorText(36, "-redis-addr"), colorText(34, "[地址:端口]"), "Redis服务器地址 (例如: localhost:6379)")  
     fmt.Printf("  %-20s %-15s %s\n", colorText(36, "-redis-user"), colorText(34, "[用户名]"), "Redis用户名 (可选)")  
     fmt.Printf("  %-20s %-15s %s\n", colorText(36, "-redis-pass"), colorText(34, "[密码]"), "Redis密码 (可选)")  
-    fmt.Printf("  %-20s %-15s %s\n", colorText(36, "-redis-pre"), colorText(34, "[前缀]"), "Redis数据前缀，默认为short")  
+    fmt.Printf("  %-20s %-15s %s\n", colorText(36, "-redis-pre"), colorText(34, "[前缀]"), "Redis数据前缀，默认为short，连接相同的redis数据库时用于区分不同应用")  
     fmt.Printf("  %-20s %-15s %s\n", colorText(36, "-v"), "", "版本号")  
     fmt.Printf("  %-20s %-15s %s\n", colorText(36, "-h"), "", "帮助信息")  
       
@@ -2979,7 +2982,7 @@ if envRedisPre := os.Getenv("SHORT_REDIS_PRE"); envRedisPre != "" {
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		// 设置CORS相关头
    	 	w.Header().Set("Access-Control-Allow-Origin", "*")  // 允许所有域名访问
-    	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")  // 允许的请求方法
+    	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, HEAD, OPTIONS")  // 允许的请求方法
     	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")  // 允许的请求头
 
     	if r.Method == "OPTIONS" {
