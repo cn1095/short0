@@ -12,6 +12,7 @@ import (
     "net/http"
     "os"
     "os/exec"
+	"os/signal"
     "path/filepath"
     "strconv"
     "runtime"
@@ -416,7 +417,7 @@ func (hs *HybridStorage) SaveStats(data Data) error {
   
 func (hs *HybridStorage) LoadStats() (Data, error) {  
     if redisEnabled {  
-        stats, err := hs.redis.LoadStats(data)  
+        stats, err := hs.redis.LoadStats()   
         if err != nil {  
             log.Printf("Redis读取统计数据失败，回退到文件存储: %v", err)  
         } else {  
@@ -935,6 +936,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // 处理其他请求  
+// 处理其他请求  
 func shortHandler(w http.ResponseWriter, r *http.Request, dataDir string) {  
     // 获取请求路径并处理  
     path := r.URL.Path[1:] // 去掉开头的斜杠  
@@ -976,9 +978,9 @@ func shortHandler(w http.ResponseWriter, r *http.Request, dataDir string) {
         return  
     }  
   
-    // 检查密码保护  
+    // 检查密码保护 - 重定向到认证页面  
     if apiReq.Password != "" {  
-        // 从查询参数或POST表单中获取密码  
+        // 检查查询参数中的密码  
         password := r.URL.Query().Get("password")  
         if password == "" {  
             // 如果是POST请求，尝试从表单获取  
@@ -989,8 +991,8 @@ func shortHandler(w http.ResponseWriter, r *http.Request, dataDir string) {
         }  
           
         if password != apiReq.Password {  
-            // 密码错误，显示密码输入页面  
-            showPasswordPage(w, path)  
+            // 密码错误或未提供，重定向到认证页面  
+            http.Redirect(w, r, "/admin-auth", http.StatusSeeOther)  
             return  
         }  
     }  
@@ -1018,14 +1020,14 @@ func shortHandler(w http.ResponseWriter, r *http.Request, dataDir string) {
   
         // 比较时间  
         if expirationTimeFormatted <= nowFormatted {  
-            // 如果过期，返回"链接已过期"并删除文件  
+            // 如果过期，返回"链接已过期"并删除规则  
             storage.DeleteRule(path)  
             fmt.Fprintf(w, "链接已过期")  
             return  
         }  
     }  
   
-    // 检查 burn_after_reading 的值，如果为 "true" 则删除文件  
+    // 检查 burn_after_reading 的值，如果为 "true" 则删除规则  
     if apiReq.BurnAfterReading == "true" {  
         defer func() {  
             storage.DeleteRule(path)  
