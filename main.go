@@ -2884,9 +2884,11 @@ function updateDeleteButton() {
 	if (checkboxes.length > 0) {  
 		deleteBtn.disabled = false;
 		deselectAllPagesBtn.disabled = false;
+		deleteBtn.textContent = "删除选中的 " + checkboxes.length + " 条";
 	} else {  
 		deleteBtn.disabled = true;
 		deselectAllPagesBtn.disabled = true;
+		deleteBtn.textContent = "删除选中";
 	}  
 }
 
