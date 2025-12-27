@@ -2281,12 +2281,11 @@ td:first-child {
     position: fixed;  
     bottom: 30px;  
     right: 30px;  
-    /* 移除固定宽高，让背景刚好包裹文字 */  
-    padding: 12px 20px;  /* 用padding控制大小 */  
+    padding: 12px 20px;  
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);  
     color: white;  
     border: none;  
-    border-radius: 25px;  /* 圆角按钮 */  
+    border-radius: 6px;  /* 改为6px，与其他Vue按钮一致 */  
     cursor: pointer;  
     display: none;  
     align-items: center;  
@@ -2294,10 +2293,10 @@ td:first-child {
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);  
     transition: all 0.3s ease;  
     z-index: 1000;  
-    font-size: 16px;  /* 增大文字 */  
-    font-weight: 600;  /* 加粗 */  
-    white-space: nowrap;  /* 防止文字换行 */  
-}  
+    font-size: 16px;  
+    font-weight: 600;  
+    white-space: nowrap;  
+}
   
 .back-to-top-btn:hover {  
     transform: translateY(-2px);  
