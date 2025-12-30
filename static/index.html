@@ -1,397 +1,522 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.3/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.3/js/bootstrap.bundle.min.js"></script>
-    <!-- <script src="https://fastly.jsdelivr.net/gh/lmq8267/live2d-widget@master/autoload.js"></script> -->
-    <script src="https://ou.5670567.xyz/counter.js" async="" id="online-counter" interval="240"  svg="true" api="https://ou.5670567.xyz/counter" room="8267short-url"></script>
-    <link rel="icon"
-          href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔗</text></svg>">
-    <title>简短分享 - 长网址缩短，文本分享，Html单页分享</title>
-    <style>
-        .bd-placeholder-img {
-            font-size: 1.125rem;
-            text-anchor: middle;
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            user-select: none;
-        }
-        .btn-secondary,
-        .btn-secondary:hover,
-        .btn-secondary:focus {
-            color: #333;
-            text-shadow: none;
-        }
-        .input-group-text {
-            background-color: orange;
-            border-color: orange;
-        }
-        .form-control {
-            border-color: orange;
-        }
-        body {
-            background-image: url('my-img.jpeg');
-            background-size: cover;
-            background-position: center;
-            text-shadow: 0 .05rem .1rem rgba(0, 0, 0, .5);
-        }
-        .cover-container {
-            max-width: 42em;
-        }
-        .navbar-brand svg {
-            width: 30px;
-            height: 30px;
-        }
-        @media (max-width: 576px) {
-            #input-container .form-control,
-            #input-container .input-group-text {
-                display: block;
-                width: 100%;
-                margin-bottom: 1rem;
-                border-radius: 5px;
-            }
-        }
-        .footer {
-            position: absolute;
-            bottom: 0;
-            width: 100%;
-            height: 60px;
-        }
-        .footer .container {
-            width: 100%;
-            height: 100%;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .black-toast .toast {
-            background-color: black;
-        }
-        .text-muted {
-            font-size: 14px;
-            color: #555;
-            margin-right: 20px;
-        }
-        .form-check {
-            margin-top: 10px;
-            margin-bottom: 10px;
-        }
-        .input-group-text {
-            font-size: 14px;
-        }
-        .stat-box {
-            display: inline-block;
-            width: 150px;
-            height: 100px;
-            border: 1px solid #eee;
-            border-radius: 10px;
-            margin: 10px;
-            text-align: center;
-            padding: 10px;
-            background-color: #f8f9fa;
-        }
-        .stat-box .stat-title {
-            font-size: 18px;
-            color: orange;
-            font-weight: bold;
-        }
-        .stat-box .stat-value {
-            font-size: 24px;
-            color: orange;
-            font-weight: bold;
-        }
-        /* Loading Overlay Styles */
-        #loading-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-            z-index: 999;
-            text-align: center;
-        }
-        #loading-text {
-            color: orange;
-            font-size: 24px;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            animation: scrollText 2s infinite;
-        }
-        @keyframes scrollText {
-            0% {
-                transform: translate(-50%, -50%) translateY(0);
-            }
-            50% {
-                transform: translate(-50%, -50%) translateY(10px);
-            }
-            100% {
-                transform: translate(-50%, -50%) translateY(0);
-            }
-        }
-    </style>
-    <script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.3/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.3/js/bootstrap.bundle.min.js"></script>
+  <!-- <script src="https://fastly.jsdelivr.net/gh/lmq8267/live2d-widget@master/autoload.js"></script> -->
+  <script src="https://ou.5670567.xyz/counter.js" async="" id="online-counter" interval="240" svg="true"
+    api="https://ou.5670567.xyz/counter" room="8267short-url"></script>
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔗</text></svg>">
+  <title>简短分享 - 长网址缩短，文本分享，Html单页分享</title>
+  <style>
+    .bd-placeholder-img {
+      font-size: 1.125rem;
+      text-anchor: middle;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      user-select: none;
+    }
+
+    .btn-secondary,
+    .btn-secondary:hover,
+    .btn-secondary:focus {
+      color: #333;
+      text-shadow: none;
+    }
+
+    .input-group-text {
+      background-color: orange;
+      border-color: orange;
+    }
+
+    .form-control {
+      border-color: orange;
+    }
+
+    body {
+      background-image: url('my-img.jpeg');
+      background-size: cover;
+      background-position: center;
+      text-shadow: 0 .05rem .1rem rgba(0, 0, 0, .5);
+    }
+
+    .cover-container {
+      max-width: 42em;
+    }
+
+    .navbar-brand svg {
+      width: 30px;
+      height: 30px;
+    }
+
+    @media (max-width: 576px) {
+
+      #input-container .form-control,
+      #input-container .input-group-text {
+        display: block;
+        width: 100%;
+        margin-bottom: 1rem;
+        border-radius: 5px;
+      }
+    }
+
+    .footer {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 60px;
+    }
+
+    .footer .container {
+      width: 100%;
+      height: 100%;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .black-toast .toast {
+      background-color: black;
+    }
+
+    .text-muted {
+      font-size: 14px;
+      color: #555;
+      margin-right: 20px;
+    }
+
+    .form-check {
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+
+    .input-group-text {
+      font-size: 14px;
+    }
+
+    .stat-box {
+      display: inline-block;
+      width: 150px;
+      height: 100px;
+      border: 1px solid #eee;
+      border-radius: 10px;
+      margin: 10px;
+      text-align: center;
+      padding: 10px;
+      background-color: #f8f9fa;
+    }
+
+    .stat-box .stat-title {
+      font-size: 18px;
+      color: orange;
+      font-weight: bold;
+    }
+
+    .stat-box .stat-value {
+      font-size: 24px;
+      color: orange;
+      font-weight: bold;
+    }
+
+    /* Loading Overlay Styles */
+    #loading-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 999;
+      text-align: center;
+    }
+
+    #loading-text {
+      color: orange;
+      font-size: 24px;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      animation: scrollText 2s infinite;
+    }
+
+    @keyframes scrollText {
+      0% {
+        transform: translate(-50%, -50%) translateY(0);
+      }
+
+      50% {
+        transform: translate(-50%, -50%) translateY(10px);
+      }
+
+      100% {
+        transform: translate(-50%, -50%) translateY(0);
+      }
+    }
+
+    /* 气泡悬浮提示样式 */
+    .tooltip-wrapper {
+      position: relative;
+    }
+
+    .custom-tooltip {
+      position: absolute;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 8px 8px 8px 8px !important;
+      font-size: 14px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(-10px);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 1000;
+      box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+      top: -45px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+    }
+
+    .custom-tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: #764ba2;
+    }
+
+    .custom-tooltip.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* 为select添加hover效果 */
+    .form-select:hover {
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-select {
+      border-radius: 5px !important;
+    }
+  </style>
+  <script>
     (function () {
-        var a_idx = 0;
-        window.onclick = function (event) {
-            var a = new Array("❤富强❤", "❤民主❤", "❤文明❤", "❤和谐❤", "❤自由❤", "❤平等❤", "❤公正❤", "❤法治❤", "❤爱国❤",
-                "❤敬业❤", "❤诚信❤", "❤友善❤");
- 
-            var heart = document.createElement("b"); //创建b元素
-            heart.onselectstart = new Function('event.returnValue=false'); //防止拖动
- 
-            document.body.appendChild(heart).innerHTML = a[a_idx]; //将b元素添加到页面上
-            a_idx = (a_idx + 1) % a.length;
-            heart.style.cssText = "position: fixed;left:-100%;"; //给p元素设置样式
- 
-            var f = 2, // 字体大小
-                x = event.clientX - f / 2, // 横坐标
-                y = event.clientY - f, // 纵坐标
-                c = randomColor(), // 随机颜色
-                a = 1, // 透明度
-                s = 0.6; // 放大缩小
- 
-            var timer = setInterval(function () { //添加定时器
-                if (a <= 0) {
-                    document.body.removeChild(heart);
-                    clearInterval(timer);
-                } else {
-                    heart.style.cssText = "font-size:16px;cursor: default;position: fixed;color:" +
-                        c + ";left:" + x + "px;top:" + y + "px;opacity:" + a + ";transform:scale(" +
-                        s + ");";
- 
-                    y--;
-                    a -= 0.016;
-                    s += 0.002;
-                }
-            }, 15)
- 
-        }
-        // 随机颜色
-        function randomColor() {
- 
-            return "rgb(" + (~~(Math.random() * 255)) + "," + (~~(Math.random() * 255)) + "," + (~~(Math
-                .random() * 255)) + ")";
- 
-        }
+      var a_idx = 0;
+      window.onclick = function (event) {
+        var a = new Array("❤富强❤", "❤民主❤", "❤文明❤", "❤和谐❤", "❤自由❤", "❤平等❤", "❤公正❤", "❤法治❤", "❤爱国❤",
+          "❤敬业❤", "❤诚信❤", "❤友善❤");
+
+        var heart = document.createElement("b"); //创建b元素
+        heart.onselectstart = new Function('event.returnValue=false'); //防止拖动
+
+        document.body.appendChild(heart).innerHTML = a[a_idx]; //将b元素添加到页面上
+        a_idx = (a_idx + 1) % a.length;
+        heart.style.cssText = "position: fixed;left:-100%;"; //给p元素设置样式
+
+        var f = 2, // 字体大小
+          x = event.clientX - f / 2, // 横坐标
+          y = event.clientY - f, // 纵坐标
+          c = randomColor(), // 随机颜色
+          a = 1, // 透明度
+          s = 0.6; // 放大缩小
+
+        var timer = setInterval(function () { //添加定时器
+          if (a <= 0) {
+            document.body.removeChild(heart);
+            clearInterval(timer);
+          } else {
+            heart.style.cssText = "font-size:16px;cursor: default;position: fixed;color:" +
+              c + ";left:" + x + "px;top:" + y + "px;opacity:" + a + ";transform:scale(" +
+              s + ");";
+
+            y--;
+            a -= 0.016;
+            s += 0.002;
+          }
+        }, 15)
+
+      }
+      // 随机颜色
+      function randomColor() {
+
+        return "rgb(" + (~~(Math.random() * 255)) + "," + (~~(Math.random() * 255)) + "," + (~~(Math
+          .random() * 255)) + ")";
+
+      }
     }());
-</script>
+  </script>
 </head>
+
 <body class="d-flex h-100 text-center text-white bg-dark">
-<div id="loading-overlay">
+  <div id="loading-overlay">
     <div id="loading-text">生成中...</div>
-</div>
-<div class="cover-container d-flex w-100 h-100 p-3 mx-auto flex-column">
+  </div>
+  <div class="cover-container d-flex w-100 h-100 p-3 mx-auto flex-column">
     <header class="mb-auto">
-        <div>
-        </div>
+      <div>
+      </div>
     </header>
     <main class="px-3">
-        <h1>简短分享</h1>
-        <br>
-        <br>
-        <div class="row justify-content-center">
-            <div class="col-md-10">
-                <div id="input-container">
-                    <div class="input-group mb-3">
-                        <label class="input-group-text" for="type">请选择功能</label>
-                        <select class="form-select" id="type" name="type">
-                            <option value="link">缩短链接</option>
-                            <option value="html">HTML网页</option>
-                            <option value="text">txt文本</option>
-                            <option value="page">网页文本</option>
-                            <option value="iframe">iframe网页</option>
-                        </select>
-                    </div>
-
-                    <div class="input-group mb-3">
-                        <span class="input-group-text">请输入后缀</span>
-                        <input type="text" class="form-control" id="shortCode" placeholder="可选，留空随机生成后缀">
-                    </div>
-                    <div class="input-group mb-3">
-                        <span class="input-group-text" title="⚠️请务必牢记后缀密码，忘记将无法修改，只能联系此站长删除！">请设定密码</span>
-                        <input type="text" class="form-control" id="password" placeholder="可选，密码保护后缀，防止他人修改">
-                    </div>
-
-                    <div class="input-group mb-3">
-                       <label class="input-group-text" for="expiration" title="⚠️过期后将会自动删除，并释放后缀，其他人将可使用！">有 效 时 长</label>
-                       <select class="form-select" id="expiration" name="expiration" onchange="handleExpirationChange()">
-                       <option value="">永久有效</option>
-                       <option value="5">5分钟</option>
-                       <option value="10">10分钟</option>
-                       <option value="30">30分钟</option>
-                       <option value="60">1小时</option>
-                       <option value="600">10小时</option>
-                       <option value="1440" selected>1天</option>
-                       <option value="10080">1周</option>
-                       <option value="43200">1个月</option>
-                       <option value="31536000">1年</option>
-                       <option value="custom">自定义</option>
-                       </select>
-                       <input type="number" class="form-control" id="expirationCustom" placeholder="请输入分钟数" style="display:none;">
-                    </div>
-                    <div>
-                    </div>
-                    <div class="input-group mb-3">
-                        <label class="input-group-text" for="burn_after_reading" title="⚠️启用后打开一次将自动删除，并释放后缀，其他人将可使用！">阅 后 即 焚</label>
-                        <select class="form-select" id="burn_after_reading">
-                            <option value="false" selected>不启用</option>
-                            <option value="true">启用</option>
-                        </select>
-                    </div>
-                    <div>
-                    </div>
-                    <div class="input-group mb-3">
-                        <span class="input-group-text">请输入内容</span>
-                        <textarea class="form-control" id="userInput" rows="5" placeholder="长网址或文本内容或HTML源代码"></textarea>
-                    </div>
-                    <button id="submit" class="btn btn-primary btn-block mt-3">生成</button>
-                </div>
-                <div id="result" class="mt-3" style="display:none;">
-                    <div class="alert alert-success">
-                        <p class="lead">生成成功！</p>
-                        <p class="lead" id="shortUrl"></p>
-                        
-                        <button class="btn btn-success" onclick="openShortUrl()">打开短链接</button>
-                        <button class="btn btn-success" onclick="copyShortUrl()">复制短链接</button>
-                    </div>
-                </div>
+      <h1>简短分享</h1>
+      <br>
+      <br>
+      <div class="row justify-content-center">
+        <div class="col-md-10">
+          <div id="input-container">
+            <div class="input-group mb-3">
+              <label class="input-group-text" for="type">请选择功能</label>
+              <select class="form-select" id="type" name="type">
+                <option value="link" data-tooltip="将长网址转换为短链接，支持HTTP重定向和WebSocket转发">缩短链接</option>
+                <option value="html" data-tooltip="直接展示HTML内容，适用于网页片段和静态页面">HTML网页</option>
+                <option value="text" data-tooltip="纯文本内容响应展示，没有任何html参与，适用于代码片段和文本分享">txt文本</option>
+                <option value="page" data-tooltip="使用html模板展示文本内容，支持更好的页面排版以及文字调色，适用于日志分享">网页文本</option>
+                <option value="iframe" data-tooltip="通过iframe嵌入外部网页，支持完整页面展示">iframe网页</option>
+              </select>
+              <div class="custom-tooltip" id="typeTooltip"></div>
             </div>
+
+            <div class="input-group mb-3">
+              <span class="input-group-text">请输入后缀</span>
+              <input type="text" class="form-control" id="shortCode" placeholder="可选，留空随机生成后缀">
+            </div>
+            <div class="input-group mb-3">
+              <span class="input-group-text" title="⚠️请务必牢记后缀密码，忘记将无法修改，只能联系此站长删除！">请设定密码</span>
+              <input type="text" class="form-control" id="password" placeholder="可选，密码保护后缀，防止他人修改">
+            </div>
+
+            <div class="input-group mb-3">
+              <label class="input-group-text" for="expiration" title="⚠️过期后将会自动删除，并释放后缀，其他人将可使用！">有 效 时 长</label>
+              <select class="form-select" id="expiration" name="expiration" onchange="handleExpirationChange()">
+                <option value="">永久有效</option>
+                <option value="5">5分钟</option>
+                <option value="10">10分钟</option>
+                <option value="30">30分钟</option>
+                <option value="60">1小时</option>
+                <option value="600">10小时</option>
+                <option value="1440" selected>1天</option>
+                <option value="10080">1周</option>
+                <option value="43200">1个月</option>
+                <option value="31536000">1年</option>
+                <option value="custom">自定义</option>
+              </select>
+              <input type="number" class="form-control" id="expirationCustom" placeholder="请输入分钟数"
+                style="display:none;">
+            </div>
+            <div>
+            </div>
+            <div class="input-group mb-3">
+              <label class="input-group-text" for="burn_after_reading" title="⚠️启用后打开一次将自动删除，并释放后缀，其他人将可使用！">阅 后 即
+                焚</label>
+              <select class="form-select" id="burn_after_reading">
+                <option value="false" selected>不启用</option>
+                <option value="true">启用</option>
+              </select>
+            </div>
+            <div>
+            </div>
+            <div class="input-group mb-3">
+              <span class="input-group-text">请输入内容</span>
+              <textarea class="form-control" id="userInput" rows="5" placeholder="长网址或文本内容或HTML源代码"></textarea>
+            </div>
+            <button id="submit" class="btn btn-primary btn-lg btn-block mt-3">生成</button>
+          </div>
+          <div id="result" class="mt-3" style="display:none;">
+            <div class="alert alert-success">
+              <p class="lead">生成成功！</p>
+              <p class="lead" id="shortUrl"></p>
+
+              <button class="btn btn-success" onclick="openShortUrl()">打开短链接</button>
+              <button class="btn btn-success" onclick="copyShortUrl()">复制短链接</button>
+            </div>
+          </div>
         </div>
+      </div>
     </main>
     <br><br><br>
     <footer class="mt-auto text-white-50">
-        <div class="container text-center">
-            <div class="stat-box">
-                <div class="stat-title">后缀已使用</div>
-                <div class="stat-value">{{totalRules}}</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-title">今日生成数</div>
-                <div class="stat-value">{{todayNewRules}}</div>
-            </div>
-            <br>
-            <div class="stat-box">
-                <div class="stat-title">总转址数</div>
-                <div class="stat-value">{{totalvisits}}</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-title">今日转址数</div>
-                <div class="stat-value">{{todayvisits}}</div>
-            </div>
+      <div class="container text-center">
+        <div class="stat-box">
+          <div class="stat-title">后缀已使用</div>
+          <div class="stat-value">{{totalRules}}</div>
         </div>
-        <span class="text-muted">站长邮箱: 修改为你的邮箱 </span>
-       <br><img src="https://hits.5670567.xyz/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2Flmq8267%2Fshort-url-go&count_bg=%2379C83D&title_bg=%23555555&icon=go.svg&icon_color=%2335F5F6&title=%E8%AE%BF%E9%97%AE%E7%BB%9F%E8%AE%A1&edge_flat=false" onerror="this.style.display='none';"/>
-          <span id="online_user"></span><span id="online_me"></span><span id="online_total"></span>
-        <img src="https://sd.5670567.xyz/?id=svg" onerror="this.style.display='none';"><img src="https://sd.5670567.xyz/?id=ua" onerror="this.style.display='none';"> 
+        <div class="stat-box">
+          <div class="stat-title">今日生成数</div>
+          <div class="stat-value">{{todayNewRules}}</div>
+        </div>
+        <br>
+        <div class="stat-box">
+          <div class="stat-title">总转址数</div>
+          <div class="stat-value">{{totalvisits}}</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-title">今日转址数</div>
+          <div class="stat-value">{{todayvisits}}</div>
+        </div>
+      </div>
+      <span class="text-muted">站长邮箱: 修改为你的邮箱 </span>
+      <br><img
+        src="https://hits.5670567.xyz/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2Flmq8267%2Fshort-url-go&count_bg=%2379C83D&title_bg=%23555555&icon=go.svg&icon_color=%2335F5F6&title=%E8%AE%BF%E9%97%AE%E7%BB%9F%E8%AE%A1&edge_flat=false"
+        onerror="this.style.display='none';" />
+      <span id="online_user"></span><span id="online_me"></span><span id="online_total"></span>
+      <img src="https://sd.5670567.xyz/?id=svg" onerror="this.style.display='none';"><img
+        src="https://sd.5670567.xyz/?id=ua" onerror="this.style.display='none';">
     </footer>
-</div>
-<script>
+  </div>
+  <script>
     document.getElementById("submit").addEventListener("click", function () {
-        var userInput = document.getElementById("userInput").value;
-        var shortCode = document.getElementById("shortCode").value;
-        var password = document.getElementById("password").value;
-        var expirationSelect = document.getElementById("expiration");
-        var expirationCustom = document.getElementById("expirationCustom");
-        var burnAfterReading = document.getElementById("burn_after_reading").value;
-        var type = document.getElementById("type").value;
+      var userInput = document.getElementById("userInput").value;
+      var shortCode = document.getElementById("shortCode").value;
+      var password = document.getElementById("password").value;
+      var expirationSelect = document.getElementById("expiration");
+      var expirationCustom = document.getElementById("expirationCustom");
+      var burnAfterReading = document.getElementById("burn_after_reading").value;
+      var type = document.getElementById("type").value;
 
-        var expiration = expirationSelect.value === "custom" ? expirationCustom.value : expirationSelect.value;
+      var expiration = expirationSelect.value === "custom" ? expirationCustom.value : expirationSelect.value;
 
-        // Show loading overlay
-        document.getElementById("loading-overlay").style.display = "block";
-        document.body.style.overflow = "hidden"; // Prevent scrolling
+      // Show loading overlay
+      document.getElementById("loading-overlay").style.display = "block";
+      document.body.style.overflow = "hidden"; // Prevent scrolling
 
-        // Hide the result section when the button is clicked
-        document.getElementById("result").style.display = "none";
+      // Hide the result section when the button is clicked
+      document.getElementById("result").style.display = "none";
 
-        if (userInput === "") {
-            alert("请输入内容！");
-            document.getElementById("loading-overlay").style.display = "none";
-            document.body.style.overflow = "auto"; // Restore scrolling
-            return;
+      if (userInput === "") {
+        alert("请输入内容！");
+        document.getElementById("loading-overlay").style.display = "none";
+        document.body.style.overflow = "auto"; // Restore scrolling
+        return;
+      }
+
+      fetch("/api", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          longUrl: userInput,
+          shortCode: shortCode,
+          password: password,
+          expiration: expiration,
+          burn_after_reading: burnAfterReading,
+          type: type
+        })
+      }).then(response => response.json()).then(data => {
+        if (data.error) {
+          alert(data.error);
+        } else {
+          var shortUrl = data.short_url;
+          document.getElementById("shortUrl").innerText = shortUrl;
+          document.getElementById("result").style.display = "block";
         }
-
-        fetch("/api", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                longUrl: userInput,
-                shortCode: shortCode,
-                password: password,
-                expiration: expiration,
-                burn_after_reading: burnAfterReading,
-                type: type
-            })
-        }).then(response => response.json()).then(data => {
-            if (data.error) {
-                alert(data.error);
-            } else {
-                var shortUrl = data.short_url;
-                document.getElementById("shortUrl").innerText = shortUrl;
-                document.getElementById("result").style.display = "block";
-            }
-            // Hide loading overlay
-            document.getElementById("loading-overlay").style.display = "none";
-            document.body.style.overflow = "auto"; // Restore scrolling
-        }).catch(error => {
-            console.error("Error:", error);
-            // Hide loading overlay
-            document.getElementById("loading-overlay").style.display = "none";
-            document.body.style.overflow = "auto"; // Restore scrolling
-        });
+        // Hide loading overlay
+        document.getElementById("loading-overlay").style.display = "none";
+        document.body.style.overflow = "auto"; // Restore scrolling
+      }).catch(error => {
+        console.error("Error:", error);
+        // Hide loading overlay
+        document.getElementById("loading-overlay").style.display = "none";
+        document.body.style.overflow = "auto"; // Restore scrolling
+      });
     });
 
     function handleExpirationChange() {
-        var expirationSelect = document.getElementById("expiration");
-        var expirationCustom = document.getElementById("expirationCustom");
+      var expirationSelect = document.getElementById("expiration");
+      var expirationCustom = document.getElementById("expirationCustom");
 
-        if (expirationSelect.value === "custom") {
-            expirationCustom.style.display = "block";
-            expirationCustom.disabled = false;
-        } else {
-            expirationCustom.style.display = "none";
-            expirationCustom.disabled = true;
-            expirationCustom.value = "";
-        }
+      if (expirationSelect.value === "custom") {
+        expirationCustom.style.display = "block";
+        expirationCustom.disabled = false;
+      } else {
+        expirationCustom.style.display = "none";
+        expirationCustom.disabled = true;
+        expirationCustom.value = "";
+      }
     }
 
     function copyShortUrl() {
-            var shortUrl = document.getElementById("shortUrl").innerText;
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(shortUrl).then(() => {
-                    alert("短链接已复制到剪贴板！");
-                }).catch(err => {
-                    console.error('Failed to copy: ', err);
-                });
-            } else {
-                // Fallback for older browsers or non-HTTPS context
-                var textArea = document.createElement("textarea");
-                textArea.value = shortUrl;
-                document.body.appendChild(textArea);
-                textArea.focus();
-                textArea.select();
-                try {
-                    document.execCommand('copy');
-                    alert("短链接已复制到剪贴板！");
-                } catch (err) {
-                    console.error('Fallback: Oops, unable to copy', err);
-                }
-                document.body.removeChild(textArea);
-            }
+      var shortUrl = document.getElementById("shortUrl").innerText;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shortUrl).then(() => {
+          alert("短链接已复制到剪贴板！");
+        }).catch(err => {
+          console.error('Failed to copy: ', err);
+        });
+      } else {
+        // Fallback for older browsers or non-HTTPS context
+        var textArea = document.createElement("textarea");
+        textArea.value = shortUrl;
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+          document.execCommand('copy');
+          alert("短链接已复制到剪贴板！");
+        } catch (err) {
+          console.error('Fallback: Oops, unable to copy', err);
         }
-   function openShortUrl() {
-        var shortUrl = document.getElementById("shortUrl").innerText;
-        window.open(shortUrl, '_blank');
+        document.body.removeChild(textArea);
+      }
     }
-</script>
+    function openShortUrl() {
+      var shortUrl = document.getElementById("shortUrl").innerText;
+      window.open(shortUrl, '_blank');
+    }
+    // 气泡提示功能  
+    const typeSelect = document.getElementById('type');
+    const tooltip = document.getElementById('typeTooltip');
+
+    typeSelect.addEventListener('mouseenter', function (e) {
+      const selectedOption = this.options[this.selectedIndex];
+      const tooltipText = selectedOption.getAttribute('data-tooltip');
+
+      if (tooltipText) {
+        tooltip.textContent = tooltipText;
+        tooltip.classList.add('show');
+      }
+    });
+
+    typeSelect.addEventListener('mouseleave', function () {
+      tooltip.classList.remove('show');
+    });
+
+    typeSelect.addEventListener('change', function () {
+      // 选择改变时立即显示新选项的提示  
+      const selectedOption = this.options[this.selectedIndex];
+      const tooltipText = selectedOption.getAttribute('data-tooltip');
+
+      if (tooltipText) {
+        tooltip.textContent = tooltipText;
+        tooltip.classList.add('show');
+
+        // 2秒后自动隐藏  
+        setTimeout(() => {
+          tooltip.classList.remove('show');
+        }, 2000);
+      }
+    });
+
+    // 为下拉框的每个选项添加hover效果  
+    typeSelect.addEventListener('mousemove', function (e) {
+      const option = e.target;
+      if (option.tagName === 'OPTION') {
+        const tooltipText = option.getAttribute('data-tooltip');
+        if (tooltipText) {
+          tooltip.textContent = tooltipText;
+          tooltip.classList.add('show');
+        }
+      }
+    });
+  </script>
 </body>
+
 </html>
