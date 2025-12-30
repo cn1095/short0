@@ -3661,15 +3661,15 @@ func initializeIPDatabases() {
 	// log.Println("IP数据库异步初始化完成")
 }
 
-func runAsDaemon() {  
+func runAsDaemon() {
     switch runtime.GOOS {
-    case "linux", "freebsd", "darwin":  
+    case "linux", "freebsd", "darwin":
         runAsDaemonUnix()
     case "windows":
         runAsDaemonWindows()
-    default:  
-        log.Println("当前系统不支持后台模式")  
-    }  
+    default:
+        log.Println("当前系统不支持后台模式")
+    }
 }
 
 func main() {
